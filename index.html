@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Makes the page scale properly on phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Product Scanner</title>
+
+  <!-- Barcode scanner library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef2f7, #dce3ec);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      padding: 28px;
+      border-radius: 22px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 26px;
+      color: #222;
+    }
+
+    p {
+      color: #666;
+      font-size: 15px;
+    }
+
+    #scanButton {
+      width: 100%;
+      padding: 16px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 14px;
+      background: #111827;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #scanButton:active {
+      transform: scale(0.98);
+    }
+
+    #resultBox {
+      margin-top: 22px;
+      padding: 16px;
+      background: #f3f4f6;
+      border-radius: 14px;
+      color: #222;
+      font-size: 16px;
+      word-break: break-all;
+    }
+
+    .scanner-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    #closeScanner {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 90px auto 0;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .scanner-text {
+      color: white;
+      text-align: center;
+      margin-top: 18px;
+      font-size: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>Product Scanner</h1>
+    <p>Press the button and scan a product barcode.</p>
+
+    <button id="scanButton">Scan Product</button>
+
+    <div id="resultBox">
+      Barcode ID will appear here.
+    </div>
+  </main>
+
+  <section id="scannerOverlay" class="scanner-overlay">
+    <button id="closeScanner">&times;</button>
+
+    <div id="reader"></div>
+
+    <p class="scanner-text">Point your camera at a barcode.</p>
+  </section>
+
+  <script>
+    // Get the main buttons and display areas from the page.
+    const scanButton = document.getElementById("scanButton");
+    const closeScannerButton = document.getElementById("closeScanner");
+    const scannerOverlay = document.getElementById("scannerOverlay");
+    const resultBox = document.getElementById("resultBox");
+
+    // This variable will hold the barcode scanner object.
+    let html5QrCode;
+
+    // This tracks whether the camera is currently running.
+    let scannerIsRunning = false;
+
+    // This function opens the full screen scanner.
+    function openScanner() {
+      scannerOverlay.style.display = "block";
+
+      // Create the scanner inside the reader div.
+      html5QrCode = new Html5Qrcode("reader");
+
+      // Basic scanner settings.
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+
+        // These are common product barcode formats.
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128
+        ]
+      };
+
+      // Ask for the back camera on phones.
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanError
+      ).then(() => {
+        scannerIsRunning = true;
+      }).catch((error) => {
+        resultBox.textContent = "Camera could not start.";
+        scannerOverlay.style.display = "none";
+        console.log(error);
+      });
+    }
+
+    // This function runs when a barcode is found.
+    function onScanSuccess(decodedText) {
+      resultBox.textContent = "Barcode ID: " + decodedText;
+
+      // Close the scanner after a successful scan.
+      closeScanner();
+    }
+
+    // This function runs when scanning fails for a moment.
+    function onScanError(error) {
+      // We do not show this error because scanning fails many times before success.
+      console.log("Scanning...");
+    }
+
+    // This function closes the scanner overlay.
+    function closeScanner() {
+      if (html5QrCode && scannerIsRunning) {
+
+        // Stop the camera so it is not left running.
+        html5QrCode.stop().then(() => {
+          scannerIsRunning = false;
+
+          // Clear the scanner area and hide the overlay.
+          html5QrCode.clear();
+          scannerOverlay.style.display = "none";
+        });
+      } else {
+
+        // Hide the overlay if the scanner was not running.
+        scannerOverlay.style.display = "none";
+      }
+    }
+
+    // Start scanning when the user presses the button.
+    scanButton.addEventListener("click", openScanner);
+
+    // Close scanning when the user presses the cross.
+    closeScannerButton.addEventListener("click", closeScanner);
+  </script>
+</body>
+</html>
