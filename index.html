@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Makes the page scale properly on phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Nutrition App</title>
+
+  <!-- Barcode scanner library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Open Food Facts API calls only -->
+  <script src="openfood.js" defer></script>
+
+  <!-- Main scanner/app code -->
+  <script src="app.js" defer></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef2f7, #dce3ec);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 440px;
+      background: white;
+      padding: 22px;
+      border-radius: 22px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 24px;
+      color: #111827;
+      text-transform: lowercase;
+      letter-spacing: -0.5px;
+      text-align: center;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      color: #111827;
+    }
+
+    p {
+      color: #666;
+      font-size: 14px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .date-bar {
+      display: grid;
+      grid-template-columns: 48px 1fr 48px;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .date-bar button,
+    .date-bar input {
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #111827;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: #f3f4f6;
+      padding: 5px;
+      border-radius: 16px;
+      margin-bottom: 18px;
+    }
+
+    .tab-button {
+      padding: 12px;
+      border-radius: 12px;
+      background: transparent;
+      color: #6b7280;
+      font-weight: bold;
+    }
+
+    .tab-button.selected {
+      background: white;
+      color: #111827;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .tab-button:disabled {
+      color: #b6bcc7;
+      cursor: not-allowed;
+    }
+
+    .tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .add-button {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #111827;
+      color: white;
+      font-size: 26px;
+      line-height: 42px;
+    }
+
+    .empty-box {
+      padding: 26px;
+      background: #f9fafb;
+      border-radius: 18px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .entry-card {
+      margin-bottom: 10px;
+      background: #f9fafb;
+      border: 1px solid #eef0f4;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .entry-summary {
+      display: grid;
+      grid-template-columns: 64px 1fr 22px;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      padding: 12px;
+      text-align: left;
+      background: transparent;
+    }
+
+    .entry-summary img,
+    .product-row img,
+    .no-image {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      background: white;
+      border-radius: 13px;
+    }
+
+    .no-image {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .entry-name {
+      display: block;
+      color: #111827;
+      font-size: 15px;
+      margin-bottom: 5px;
+    }
+
+    .entry-serves {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .entry-arrow {
+      color: #9ca3af;
+      font-size: 20px;
+    }
+
+    .entry-details {
+      display: none;
+      padding: 0 12px 14px;
+    }
+
+    .entry-card.open .entry-details {
+      display: block;
+    }
+
+    .detail-line {
+      margin: 10px 0;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .serve-row {
+      display: grid;
+      grid-template-columns: 1fr 90px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .serve-row input,
+    .search-box,
+    .modal-input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      font-size: 15px;
+      background: white;
+    }
+
+    .nutrition-box {
+      margin-top: 14px;
+      padding: 12px;
+      background: white;
+      border: 1px solid #eef0f4;
+      border-radius: 16px;
+    }
+
+    .nutrition-note {
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    .nutrient-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: #f3f4f6;
+      padding: 5px;
+      border-radius: 13px;
+      margin-bottom: 10px;
+    }
+
+    .nutrient-tab {
+      padding: 9px;
+      border-radius: 10px;
+      background: transparent;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .nutrient-tab.selected {
+      background: white;
+      color: #111827;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .nutrient-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 13px;
+    }
+
+    .nutrient-row:last-child {
+      border-bottom: none;
+    }
+
+    .nutrient-label {
+      color: #6b7280;
+    }
+
+    .nutrient-value {
+      color: #111827;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .delete-button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: bold;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .back-button {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #f3f4f6;
+      color: #111827;
+      font-size: 24px;
+    }
+
+    #scanButton {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      background: #111827;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 18px;
+    }
+
+    .search-tools {
+      background: #f9fafb;
+      padding: 14px;
+      border-radius: 18px;
+    }
+
+    .radio-slider {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: #e5e7eb;
+      padding: 5px;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+
+    .radio-slider input {
+      display: none;
+    }
+
+    .radio-slider label {
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: bold;
+      color: #6b7280;
+      cursor: pointer;
+    }
+
+    #searchExisting:checked ~ label[for="searchExisting"],
+    #searchNew:checked ~ label[for="searchNew"] {
+      background: white;
+      color: #111827;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .small-help {
+      margin: 10px 0 0;
+      color: #6b7280;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .results-list {
+      margin-top: 14px;
+    }
+
+    .product-row {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 16px;
+      background: #f9fafb;
+      text-align: left;
+    }
+
+    .product-row strong {
+      color: #111827;
+      font-size: 14px;
+    }
+
+    .product-row span {
+      display: block;
+      color: #6b7280;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .scanner-overlay,
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    .scanner-overlay {
+      background: #000;
+    }
+
+    .modal-overlay {
+      background: rgba(17, 24, 39, 0.55);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: white;
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    .modal-card h2 {
+      margin-bottom: 8px;
+    }
+
+    .modal-card p {
+      margin: 6px 0 14px;
+    }
+
+    .serving-size-question {
+      display: none;
+      margin-bottom: 14px;
+      padding: 12px;
+      background: #fff7ed;
+      border-radius: 14px;
+      color: #92400e;
+    }
+
+    .serving-size-question label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .modal-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .cancel-button,
+    .save-button {
+      padding: 13px;
+      border-radius: 14px;
+      font-weight: bold;
+    }
+
+    .cancel-button {
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .save-button {
+      background: #111827;
+      color: white;
+    }
+
+    #closeScanner {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 90px auto 0;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .scanner-text {
+      color: white;
+      text-align: center;
+      margin-top: 18px;
+      font-size: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <section id="homeScreen" class="screen active">
+      <h1>nutrition app</h1>
+
+      <div class="date-bar">
+        <button id="previousDateButton">&lt;-</button>
+        <input id="datePicker" type="date" />
+        <button id="nextDateButton">-&gt;</button>
+      </div>
+
+      <div class="tabs">
+        <button id="entriesTab" class="tab-button selected">Entries</button>
+        <button id="nutritionTab" class="tab-button" disabled>Nutrition</button>
+      </div>
+
+      <div class="tab-header">
+        <h2>Entries</h2>
+        <button id="addEntryButton" class="add-button">+</button>
+      </div>
+
+      <div id="entriesList"></div>
+    </section>
+
+    <section id="addScreen" class="screen">
+      <div class="top-row">
+        <button id="backButton" class="back-button">&lt;</button>
+        <h2>Add food</h2>
+        <div></div>
+      </div>
+
+      <button id="scanButton">SCAN</button>
+
+      <div class="search-tools">
+        <div class="radio-slider">
+          <input id="searchExisting" name="searchMode" type="radio" value="existing" checked />
+          <input id="searchNew" name="searchMode" type="radio" value="new" />
+          <label for="searchExisting">EXISTING</label>
+          <label for="searchNew">NEW</label>
+        </div>
+
+        <input id="searchBox" class="search-box" type="text" placeholder="Search for food" />
+        <p id="searchHelp" class="small-help">Existing foods autocomplete. New foods search when you press Enter.</p>
+      </div>
+
+      <div id="searchResults" class="results-list"></div>
+    </section>
+  </main>
+
+  <section id="scannerOverlay" class="scanner-overlay">
+    <button id="closeScanner">&times;</button>
+
+    <div id="reader"></div>
+
+    <p id="resultBox" class="scanner-text">Point your camera at a barcode.</p>
+  </section>
+
+  <section id="itemModal" class="modal-overlay">
+    <div class="modal-card">
+      <h2 id="modalItemName">Food name</h2>
+      <p id="modalServingSize">Serving size</p>
+
+      <div id="servingSizeQuestion" class="serving-size-question">
+        <label for="modalServingGrams">Approximate serving size in grams</label>
+        <input id="modalServingGrams" class="modal-input" type="number" min="1" step="1" value="100" />
+      </div>
+
+      <label for="modalServes">Servings consumed</label>
+      <input id="modalServes" class="modal-input" type="number" min="0" step="0.1" value="1" />
+
+      <div class="modal-buttons">
+        <button id="cancelModalButton" class="cancel-button">Cancel</button>
+        <button id="saveModalButton" class="save-button">Enter</button>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
